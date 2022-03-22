@@ -1,78 +1,35 @@
+const config = require('config')
+const morgan = require('morgan')
+const helmet = require('helmet')
 const Joi = require('joi')
+const logger = require('./middleware/logger')
+const courses = require('./routes/courses')
+const home = require('./routes/home')
 const express = require('express')
 const { status } = require('express/lib/response')
 const app = express()
 
-app.use(express.json())
+app.set('view engine', 'pug');
+app.set('views', './views');
 
-const courses = [
-    { id: 1, name: 'courses1' },
-    { id: 2, name: 'courses2' },
-    { id: 3, name: 'courses3' },
-]
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
+app.use(helmet());
+app.use('/api/courses', courses)
+app.use('/', home)
 
-// creation http GET
-app.get('/', (req, res) => {
-    res.send('hello word')
-});
+// configuration
+console.log('Application name: ' + config.get('name'));
+console.log('Mail server name: ' + config.get('mail.host'));
+console.log('Mail password: ' + config.get('mail.password'));
 
-app.get('/api/courses', (req, res) => {
-    res.send(courses)
-});
-
-app.get('/courses/:id', (req, res) => {
-    const course = courses.find(c => c.id === parseInt(req.params.id))
-    if (!course) res.status(404).send('le cours existe pas')
-    res.send(course)
-});
-
-// creation http POST
-app.post('/api/courses', (req, res) => {
-    const {error} = validateCourse(req.body);
-    if (error) return res.send(400).send(result.error.details[0].message)
-
-
-    const course = {
-        id: courses.length + 1,
-        name: req.body.name
-    }
-    courses.push(course)
-    res.send(course)
-});
-
-// creation http PUT
-app.put('/api/courses/:id', (req, res) => {
-    const course = courses.find(c => c.id === parseInt(req.params.id))
-    if (!course) return res.status(404).send('le cours existe pas')
-
-    const {error} = validateCourse(req.body);
-    if (error) return res.send(400).send(result.error.details[0].message)
-    
-    // Update course
-    course.name = req.body.name;
-    // Return the update course
-    res.send(course);
-});
-
-// creation http DELETE
-app.delete('/api/courses/:id', (req, res) => {
-    const course = courses.find(c => c.id === parseInt(req.params.id))
-    if (!course) return res.status(404).send('le cours existe pas')
-
-    //delet course
-    const index = courses.indexOf(course);
-    courses.splice(index, 1);
-
-    res.send(course);
-})
-
-function validateCourse(course){
-    const schema = Joi.object ({
-        name: Joi.string().min(3).required()
-    })
-    return schema.validate(course)
+if (app.get('env') === 'development') {
+    app.use(morgan('tiny'));
+    console.log('Morgan Enable...')
 }
 
-// configuration variable d'environnement 
+app.use(logger)
+
 const port = process.env.PORT || 3000
 app.listen(port, () => console.log('creation de serveur dans un port specifique'))
